@@ -4,10 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>3D Point Cloud Viewer</title>
+    
+    <!-- Correct Three.js and PLYLoader CDN links -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://threejs.org/examples/js/loaders/PLYLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/loaders/PLYLoader.js"></script>
 </head>
 <body style="margin: 0; overflow: hidden;">
+    <div id="error-message" style="position: absolute; top: 10px; left: 10px; color: red; font-size: 16px; display: none;">
+        ⚠️ Error: PLY file could not be loaded!
+    </div>
+    
     <script>
         // Create Scene
         var scene = new THREE.Scene();
@@ -21,18 +27,44 @@
         light.position.set(10, 10, 10);
         scene.add(light);
 
+        // Ensure PLYLoader is correctly defined
+        console.log("Checking PLYLoader:", THREE.PLYLoader); // Debugging
+
         // Load Point Cloud (PLY)
         var loader = new THREE.PLYLoader();
-        loader.load('sample.ply', function (geometry) {
-            var material = new THREE.PointsMaterial({ size: 0.05, vertexColors: true });
-            var pointCloud = new THREE.Points(geometry, material);
-            scene.add(pointCloud);
-        }, undefined, function (error) {
-            console.error('Error loading PLY file:', error);
-        });
+        loader.load(
+            'sample.ply', 
+            function (geometry) {
+                if (!geometry) {
+                    console.error("Geometry is null or undefined.");
+                    document.getElementById("error-message").style.display = "block";
+                    return;
+                }
+                
+                console.log("PLY File Loaded Successfully!", geometry);
+                
+                // Check vertex color data
+                if (!geometry.attributes.color) {
+                    console.warn("No vertex color data found in PLY file.");
+                }
+
+                var material = new THREE.PointsMaterial({ 
+                    size: 0.05, 
+                    vertexColors: geometry.hasAttribute('color') // Use colors if available
+                });
+
+                var pointCloud = new THREE.Points(geometry, material);
+                scene.add(pointCloud);
+            }, 
+            undefined, 
+            function (error) {
+                console.error("Error loading PLY file:", error);
+                document.getElementById("error-message").style.display = "block";
+            }
+        );
 
         // Camera Position
-        camera.position.z = 5;
+        camera.position.set(0, 0, 5);
 
         // Handle Window Resizing
         window.addEventListener("resize", function () {
@@ -47,6 +79,13 @@
             renderer.render(scene, camera);
         }
         animate();
+
+        // Debugging: Check if WebGL is working
+        if (!renderer.capabilities.isWebGL2) {
+            console.error("WebGL is not supported or disabled in your browser!");
+            document.getElementById("error-message").innerText = "⚠️ WebGL is not supported!";
+            document.getElementById("error-message").style.display = "block";
+        }
     </script>
 </body>
 </html>
